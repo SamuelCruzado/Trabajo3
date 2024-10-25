@@ -1,0 +1,35 @@
+# Se incia usando una imagen de Ubuntu
+FROM ubuntu:20.04
+
+# Aqui evitamos preguntas durante la instalación
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Se actualiza el sistema e instalar Nginx, MySQL y Supervisor
+RUN apt-get update && apt-get install -y \
+    nginx \
+    mysql-server \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configurar Nginx para que sirva una página
+RUN echo "server { listen 80; server_name localhost; location / { root /var/www/html; index index.html; } }" > /etc/nginx/sites-available/default
+
+# Se crea una página web simple para Nginx
+RUN mkdir -p /var/www/html && echo "<h1>¡Hola desde Nginx y MySQL!</h1>" > /var/www/html/index.html
+
+# Se configura MySQL: crear base de datos y usuario
+RUN service mysql start && \
+    mysql -e "CREATE DATABASE dev_db;" && \
+    mysql -e "CREATE USER 'dev_user'@'localhost' IDENTIFIED BY 'dev_pass';" && \
+    mysql -e "GRANT ALL PRIVILEGES ON dev_db.* TO 'dev_user'@'localhost';" && \
+    mysql -e "FLUSH PRIVILEGES;"
+
+# Configura Supervisor para manejar Nginx y MySQL
+RUN mkdir -p /var/log/supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Se abre los puertos 80 y 3306 para Nginx y MySQL
+EXPOSE 80 3306
+
+# Aqui se inicia Supervisor para manejar Nginx y MySQL
+CMD ["/usr/bin/supervisord"]
